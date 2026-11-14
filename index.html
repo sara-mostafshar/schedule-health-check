@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schedule Health Check – DCMA 14-Point</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --ink:#14213d; --ink2:#46536e; --muted:#7a859b; --line:#e3e7ef; --bg:#f5f7fb; --card:#fff;
+  --navy:#1f3864; --accent:#2f6fde; --pass:#1e8a5a; --passbg:#e6f4ec; --fail:#c8372d; --failbg:#fbe9e7; --na:#8a93a6; --nabg:#eef0f4;
+  --amber:#c27a00;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:"IBM Plex Sans",system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.5}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+.wrap{max-width:1080px;margin:0 auto;padding:28px 20px 60px}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:22px}
+.kicker{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600}
+h1{margin:4px 0 4px;font-size:30px;line-height:1.15;letter-spacing:-.01em}
+.sub{color:var(--ink2);margin:0;max-width:640px}
+.by{font-size:13px;color:var(--muted);text-align:right}
+.by b{color:var(--ink);font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
+.input{display:grid;grid-template-columns:1.4fr 1fr;gap:18px}
+@media(max-width:760px){.input{grid-template-columns:1fr}}
+.drop{border:2px dashed #c7d0e0;border-radius:12px;padding:26px 18px;text-align:center;cursor:pointer;transition:.15s;background:#fafbfe}
+.drop:hover,.drop.over{border-color:var(--accent);background:#f0f5ff}
+.drop strong{display:block;font-size:16px;margin-bottom:4px}
+.drop span{color:var(--muted);font-size:13px}
+.side{display:flex;flex-direction:column;gap:10px;justify-content:center}
+button{font:inherit;cursor:pointer;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--ink);padding:10px 14px;font-weight:500}
+button.primary{background:var(--navy);color:#fff;border-color:var(--navy)}
+button.primary:hover{background:#17305a}
+button:hover{border-color:#b9c3d6}
+button:disabled{opacity:.55;cursor:default}
+label.dd{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px;color:var(--ink2);border:1px solid var(--line);border-radius:9px;padding:6px 6px 6px 12px}
+label.dd input{font:inherit;border:0;background:#f3f5f9;border-radius:6px;padding:5px 8px;color:var(--ink)}
+.msg{font-size:13px;margin-top:10px;color:var(--ink2)}
+.msg.err{color:var(--fail)}
+details.fmt{margin-top:14px;font-size:13px;color:var(--ink2)}
+details.fmt summary{cursor:pointer;color:var(--accent);font-weight:500}
+details.fmt code{background:#f1f3f8;padding:1px 5px;border-radius:4px;font-size:12px}
+#results{display:none;margin-top:22px}
+.kpis{display:grid;grid-template-columns:1.6fr repeat(4,1fr);gap:12px;margin-bottom:16px}
+@media(max-width:860px){.kpis{grid-template-columns:repeat(2,1fr)}.kpis .score{grid-column:1/-1}}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.kpi .l{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+.kpi .v{font-size:20px;font-weight:600;margin-top:4px}
+.kpi .s{font-size:12.5px;color:var(--ink2)}
+.score{display:flex;align-items:center;gap:16px}
+.ring{width:84px;height:84px;flex:none}
+.verdict{font-weight:600;font-size:17px}
+.summary{margin-bottom:16px}
+.summary h2,.checks h2{font-size:16px;margin:0 0 10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.summary p{margin:0 0 10px}
+.summary ol{margin:0;padding-left:20px}
+.summary li{margin-bottom:6px}
+.ai{margin-top:14px;border-top:1px solid var(--line);padding-top:14px;display:none}
+.ai .box{background:#f4f7ff;border:1px solid #dbe5fb;border-radius:10px;padding:14px 16px;white-space:pre-wrap}
+.tag{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);background:#eaf1ff;border-radius:999px;padding:3px 9px}
+table{width:100%;border-collapse:collapse}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);font-weight:600}
+td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tr.row{cursor:pointer}
+tr.row:hover td{background:#fafbfe}
+.n{color:var(--muted);width:30px}
+.cn{font-weight:600}
+.cd{font-size:12.5px;color:var(--muted)}
+.res{white-space:nowrap;text-align:right}
+.tgt{white-space:nowrap;color:var(--ink2);font-size:13.5px}
+.pill{display:inline-block;font-size:12px;font-weight:600;border-radius:999px;padding:3px 10px;white-space:nowrap}
+.pill.pass{background:var(--passbg);color:var(--pass)}
+.pill.fail{background:var(--failbg);color:var(--fail)}
+.pill.na{background:var(--nabg);color:var(--na)}
+tr.detail td{background:#fbfcfe;padding:0 10px 12px 40px}
+tr.detail ul{margin:6px 0 0;padding:0;list-style:none;font-size:13.5px}
+tr.detail li{padding:4px 0;border-bottom:1px dashed #e8ebf2;display:flex;gap:10px;flex-wrap:wrap}
+tr.detail li .id{font-family:"IBM Plex Mono",monospace;font-weight:600;min-width:120px}
+tr.detail li .nt{color:var(--fail)}
+tr.detail .ok{color:var(--pass);font-size:13.5px;padding-top:6px}
+.chev{display:inline-block;transition:.15s;color:var(--muted);margin-left:6px}
+tr.row.open .chev{transform:rotate(90deg)}
+@media(max-width:640px){.tgt,th.tgt{display:none}td{padding:10px 6px}}
+footer{margin-top:26px;font-size:12.5px;color:var(--muted);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid #b8c6e6;border-top-color:var(--accent);border-radius:50%;animation:s 1s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="kicker">AI tools for project controllers</div>
+      <h1>Schedule Health Check</h1>
+      <p class="sub">Run the DCMA 14-Point assessment on your schedule in seconds. Upload an Excel export, see which checks pass or fail, click any check to see the activities behind it, and get a plain-English summary for management.</p>
+    </div>
+    <div class="by">Built by <b>Sara Mostafshar</b><br>Your file is read in your browser only</div>
+  </header>
+
+  <section class="card">
+    <div class="input">
+      <div>
+        <div class="drop" id="drop" tabindex="0" role="button" aria-label="Upload Excel file">
+          <strong>Drop your schedule (.xlsx) here</strong>
+          <span>or click to choose a file · sheets: Activities + Relationships</span>
+        </div>
+        <input type="file" id="file" accept=".xlsx,.xls,.xlsm" hidden>
+        <div class="msg" id="msg"></div>
+      </div>
+      <div class="side">
+        <button class="primary" id="sampleBtn">Try the sample project</button>
+        <button id="dlBtn" style="display:none">Download sample Excel (template)</button>
+        <a id="dlLink" href="Schedule_Health_Check_Sample_Data.xlsx" download style="display:none;text-align:center;border:1px solid var(--line);border-radius:9px;padding:10px 14px;color:var(--ink);text-decoration:none;font-weight:500;background:#fff">Download sample Excel (template)</a>
+        <label class="dd">Data date <input type="date" id="dd"></label>
+      </div>
+    </div>
+    <details class="fmt">
+      <summary>What should my Excel file look like?</summary>
+      <p><b>Sheet "Activities"</b>: <code>Activity ID</code>, <code>Activity Name</code>, <code>Activity Type</code> (Task / Start Milestone / Finish Milestone / Level of Effort), <code>Status</code>, <code>Original Duration (d)</code>, <code>Remaining Duration (d)</code>, <code>Start</code>, <code>Finish</code>, <code>Actual Start</code>, <code>Actual Finish</code>, <code>Baseline Start</code>, <code>Baseline Finish</code>, <code>Total Float (d)</code>, <code>Constraint Type</code>, <code>Constraint Date</code>, <code>Budgeted Cost</code>.</p>
+      <p><b>Sheet "Relationships"</b>: <code>Predecessor ID</code>, <code>Successor ID</code>, <code>Relationship Type</code> (FS/SS/FF/SF), <code>Lag (d)</code>.</p>
+      <p>Durations and float in working days. Put the data date in a cell labelled <code>Data Date</code> (e.g. on a "Read Me" sheet), or set it above. Common Primavera P6 / MS Project export names are recognised too.</p>
+    </details>
+  </section>
+
+  <section id="results">
+    <div class="kpis">
+      <div class="kpi score">
+        <svg class="ring" viewBox="0 0 84 84" aria-hidden="true">
+          <circle cx="42" cy="42" r="35" fill="none" stroke="#edf0f6" stroke-width="9"/>
+          <circle id="ringArc" cx="42" cy="42" r="35" fill="none" stroke="var(--pass)" stroke-width="9" stroke-linecap="round" transform="rotate(-90 42 42)" stroke-dasharray="0 220"/>
+          <text id="ringTxt" x="42" y="47" text-anchor="middle" font-family="IBM Plex Mono" font-weight="600" font-size="17" fill="#14213d"></text>
+        </svg>
+        <div><div class="l" style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:600">Health score</div><div class="verdict" id="verdict"></div><div class="s" id="verdictSub" style="font-size:12.5px;color:var(--ink2)"></div></div>
+      </div>
+      <div class="kpi"><div class="l">Forecast finish</div><div class="v mono" id="kFin"></div><div class="s" id="kFinS"></div></div>
+      <div class="kpi"><div class="l">Baseline finish</div><div class="v mono" id="kBl"></div><div class="s" id="kBlS"></div></div>
+      <div class="kpi"><div class="l">Tasks complete</div><div class="v mono" id="kProg"></div><div class="s" id="kProgS"></div></div>
+      <div class="kpi"><div class="l">Data date</div><div class="v mono" id="kDD"></div><div class="s" id="kDDS"></div></div>
+    </div>
+
+    <div class="card summary">
+      <h2>Management summary <button id="aiBtn" style="display:none">✦ Write AI summary</button></h2>
+      <div id="sumBody"></div>
+      <div class="ai" id="aiWrap"><span class="tag">AI summary</span><div class="box" id="aiBox" style="margin-top:8px"></div></div>
+    </div>
+
+    <div class="card checks">
+      <h2>DCMA 14-Point checks <span class="cd">Click a check to see the activities behind it</span></h2>
+      <table>
+        <thead><tr><th>#</th><th>Check</th><th class="res" style="text-align:right">Result</th><th class="tgt">Target</th><th>Status</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <span>Thresholds follow the DCMA 14-Point Schedule Assessment. Durations and float in working days (Mon–Fri).</span>
+    <span>Schedule Health Check · Sara Mostafshar</span>
+  </footer>
+</div>
+
+<script>
+// ===== Schedule Health Check core (DCMA 14-Point) =====
+const SHC = (() => {
+  const norm = s => String(s == null ? "" : s).toLowerCase().replace(/\(.*?\)/g, "").replace(/[^a-z0-9]/g, "");
+  const ACT_MAP = {
+    id: ["activityid", "id", "taskid", "activitycode"],
+    name: ["activityname", "name", "taskname", "description"],
+    wbs: ["wbs", "wbscode", "wbsname"],
+    type: ["activitytype", "type", "tasktype"],
+    status: ["status", "activitystatus"],
+    od: ["originalduration", "duration", "plannedduration", "baselineduration"],
+    rd: ["remainingduration"],
+    start: ["start", "startdate", "forecaststart", "earlystart"],
+    finish: ["finish", "finishdate", "forecastfinish", "earlyfinish"],
+    as: ["actualstart"],
+    af: ["actualfinish"],
+    bs: ["baselinestart", "blstart", "baseline1start", "blprojectstart"],
+    bf: ["baselinefinish", "blfinish", "baseline1finish", "blprojectfinish"],
+    tf: ["totalfloat", "float", "totalslack"],
+    ctype: ["constrainttype", "primaryconstraint", "constraint"],
+    cdate: ["constraintdate", "primaryconstraintdate"],
+    cost: ["budgetedcost", "budgetedtotalcost", "cost", "budget", "resource", "resources", "resourcenames"],
+  };
+  const REL_MAP = {
+    p: ["predecessorid", "predecessor", "predid", "fromid"],
+    s: ["successorid", "successor", "succid", "toid"],
+    t: ["relationshiptype", "type", "relationtype", "linktype"],
+    l: ["lag", "lagd", "lagdays"],
+  };
+  const HARD = ["mandatorystart", "mandatoryfinish", "startonly", "starton", "finishon", "muststarton", "mustfinishon",
+    "startonorbefore", "finishonorbefore", "startnolaterthan", "finishnolaterthan", "snlt", "fnlt", "mso", "mfo"];
+  const DAY = 86400000;
+
+  function toDate(v) {
+    if (v == null || v === "") return null;
+    if (v instanceof Date) {
+      if (isNaN(v)) return null;
+      const t = new Date(v.getTime() + 12 * 3600000); // guard against timezone shifts
+      return new Date(Date.UTC(t.getFullYear(), t.getMonth(), t.getDate()));
+    }
+    if (typeof v === "number") return new Date(Math.round((v - 25569)) * DAY);
+    const d = new Date(v);
+    return isNaN(d) ? null : new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  }
+  const num = v => (v == null || v === "" || isNaN(+v)) ? null : +v;
+  // working days from a to b (Mon-Fri), b exclusive
+  function wdBetween(a, b) {
+    let n = 0, sign = 1;
+    if (b < a) { [a, b] = [b, a]; sign = -1; }
+    for (let t = a.getTime(); t < b.getTime(); t += DAY) { const w = new Date(t).getUTCDay(); if (w > 0 && w < 6) n++; }
+    return n * sign;
+  }
+
+  function mapRows(rows, MAP) {
+    if (!rows.length) return { out: [], missing: Object.keys(MAP) };
+    const headers = Object.keys(rows[0]);
+    const col = {};
+    for (const k in MAP) {
+      const h = headers.find(h => MAP[k].includes(norm(h)));
+      if (h) col[k] = h;
+    }
+    const out = rows.map(r => { const o = {}; for (const k in col) o[k] = r[col[k]]; return o; });
+    return { out, missing: Object.keys(MAP).filter(k => !col[k]) };
+  }
+
+  function findSheet(wb, words) {
+    return wb.SheetNames.find(n => words.some(w => norm(n).includes(w)));
+  }
+
+  // Parse a SheetJS workbook into activities, relationships and data date
+  function parse(XLSX, wb) {
+    const errors = [];
+    const actName = findSheet(wb, ["activit", "task"]) || wb.SheetNames[0];
+    const relName = findSheet(wb, ["relation", "logic", "link", "predecess"]);
+    const actRows = XLSX.utils.sheet_to_json(wb.Sheets[actName], { defval: null });
+    const a = mapRows(actRows, ACT_MAP);
+    let rels = [];
+    if (relName) {
+      const r = mapRows(XLSX.utils.sheet_to_json(wb.Sheets[relName], { defval: null }), REL_MAP);
+      rels = r.out.filter(x => x.p != null && x.s != null).map(x => ({
+        p: String(x.p).trim(), s: String(x.s).trim(),
+        t: String(x.t || "FS").toUpperCase().replace(/[^A-Z]/g, "").replace("FINISHTOSTART", "FS").replace("STARTTOSTART", "SS").replace("FINISHTOFINISH", "FF").replace("STARTTOFINISH", "SF").slice(0, 2) || "FS",
+        l: num(x.l) || 0,
+      }));
+    } else errors.push("No 'Relationships' sheet found - logic checks need it.");
+    for (const k of ["id", "od", "start", "finish"]) if (a.missing.includes(k)) errors.push(`Activities sheet: column for '${k}' not found.`);
+
+    // Data date: look in any sheet for a "Data Date" label
+    let dataDate = null;
+    for (const n of wb.SheetNames) {
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: null });
+      for (const r of rows.slice(0, 40)) {
+        for (let i = 0; i < r.length - 1; i++) if (norm(r[i]) === "datadate" || norm(r[i]) === "statusdate") { dataDate = toDate(r[i + 1]); break; }
+        if (dataDate) break;
+      }
+      if (dataDate) break;
+    }
+    const acts = a.out.filter(x => x.id != null && x.id !== "").map(x => {
+      const typeN = norm(x.type);
+      const af = toDate(x.af), as = toDate(x.as);
+      let st = norm(x.status);
+      const status = st.includes("complet") || st === "finished" ? "C" : st.includes("progress") || st === "started" ? "P" : st.includes("notstart") || st === "planned" ? "N" : (af ? "C" : as ? "P" : "N");
+      const od = num(x.od);
+      return {
+        id: String(x.id).trim(), name: x.name || "", wbs: x.wbs || "", typeRaw: x.type || "",
+        isLOE: typeN.includes("levelofeffort") || typeN === "loe" || typeN.includes("hammock") || typeN.includes("wbssummary"),
+        isMS: typeN.includes("milestone") || (od === 0 && !typeN.includes("levelofeffort")),
+        isStartMS: typeN.includes("startmilestone"), isFinishMS: typeN.includes("finishmilestone"),
+        status, od, rd: num(x.rd), start: toDate(x.start), finish: toDate(x.finish), as, af,
+        bs: toDate(x.bs), bf: toDate(x.bf), tf: num(x.tf), ctype: x.ctype || "", ctypeN: norm(x.ctype), cdate: toDate(x.cdate),
+        cost: x.cost,
+      };
+    });
+    return { acts, rels, dataDate, errors, hasBaseline: !a.missing.includes("bf"), hasCost: !a.missing.includes("cost"), hasFloat: !a.missing.includes("tf") };
+  }
+
+  function analyze(data, dataDate) {
+    const DD = dataDate;
+    const { acts, rels } = data;
+    const byId = Object.fromEntries(acts.map(a => [a.id, a]));
+    const inc = acts.filter(a => a.status !== "C" && !a.isLOE);           // incomplete activities (tasks + milestones)
+    const incT = inc.filter(a => !a.isMS);                                 // incomplete tasks
+    const P = inc.length, T = incT.length;
+    const incIds = new Set(inc.map(a => a.id));
+    const predOf = {}, succOf = {};
+    rels.forEach(r => { (predOf[r.s] = predOf[r.s] || []).push(r); (succOf[r.p] = succOf[r.p] || []).push(r); });
+    const relsInc = rels.filter(r => incIds.has(r.s));
+    const R = relsInc.length;
+    const pct = (n, d) => d ? n / d : 0;
+    const lbl = a => ({ id: a.id, name: a.name });
+    const C = [];
+    const add = (o) => C.push(o);
+
+    // 1 Logic
+    const logicBad = inc.filter(a => {
+      const np = !(predOf[a.id] || []).length, ns = !(succOf[a.id] || []).length;
+      if (a.isStartMS) return ns; if (a.isFinishMS) return np;
+      return np || ns;
+    });
+    add({ n: 1, key: "logic", name: "Logic", desc: "Incomplete activities missing a predecessor or a successor", count: logicBad.length, base: P, value: pct(logicBad.length, P), fmt: "pct", target: "≤ 5%", pass: pct(logicBad.length, P) <= 0.05,
+      items: logicBad.map(a => ({ ...lbl(a), note: [!(predOf[a.id] || []).length ? "no predecessor" : null, !(succOf[a.id] || []).length ? "no successor" : null].filter(Boolean).join(", ") })) });
+    // 2 Leads
+    const leads = relsInc.filter(r => r.l < 0);
+    add({ n: 2, key: "leads", name: "Leads", desc: "Relationships with a negative lag", count: leads.length, base: R, value: pct(leads.length, R), fmt: "pct", target: "0%", pass: leads.length === 0,
+      items: leads.map(r => ({ id: `${r.p} → ${r.s}`, name: (byId[r.s] || {}).name || "", note: `${r.t} ${r.l} d` })) });
+    // 3 Lags
+    const lags = relsInc.filter(r => r.l > 0);
+    add({ n: 3, key: "lags", name: "Lags", desc: "Relationships with a positive lag", count: lags.length, base: R, value: pct(lags.length, R), fmt: "pct", target: "≤ 5%", pass: pct(lags.length, R) <= 0.05,
+      items: lags.map(r => ({ id: `${r.p} → ${r.s}`, name: (byId[r.s] || {}).name || "", note: `${r.t} +${r.l} d` })) });
+    // 4 Relationship types
+    const nonFS = relsInc.filter(r => r.t !== "FS");
+    const fsShare = pct(R - nonFS.length, R);
+    add({ n: 4, key: "reltypes", name: "Relationship Types", desc: "Share of Finish-to-Start links", count: R - nonFS.length, base: R, value: fsShare, fmt: "pct", target: "≥ 90% FS", pass: fsShare >= 0.9,
+      items: nonFS.map(r => ({ id: `${r.p} → ${r.s}`, name: (byId[r.s] || {}).name || "", note: `${r.t}${r.l ? (r.l > 0 ? " +" : " ") + r.l + " d" : ""}` })) });
+    // 5 Hard constraints
+    const hard = inc.filter(a => a.ctypeN && HARD.includes(a.ctypeN));
+    add({ n: 5, key: "hard", name: "Hard Constraints", desc: "Constraints that override logic (Mandatory, Start/Finish On, On or Before)", count: hard.length, base: P, value: pct(hard.length, P), fmt: "pct", target: "≤ 5%", pass: pct(hard.length, P) <= 0.05,
+      items: hard.map(a => ({ ...lbl(a), note: a.ctype })) });
+    // 6 High float
+    const hiF = inc.filter(a => a.tf != null && a.tf > 44);
+    add({ n: 6, key: "highfloat", name: "High Float", desc: "Total float above 44 working days", count: hiF.length, base: P, value: pct(hiF.length, P), fmt: "pct", target: "≤ 5%", pass: pct(hiF.length, P) <= 0.05,
+      items: hiF.map(a => ({ ...lbl(a), note: `${a.tf} d float` })) });
+    // 7 Negative float
+    const negF = inc.filter(a => a.tf != null && a.tf < 0);
+    add({ n: 7, key: "negfloat", name: "Negative Float", desc: "Activities with total float below zero", count: negF.length, base: P, value: pct(negF.length, P), fmt: "pct", target: "0%", pass: negF.length === 0,
+      items: negF.sort((x, y) => x.tf - y.tf).map(a => ({ ...lbl(a), note: `${a.tf} d float` })) });
+    // 8 High duration
+    const hiD = incT.filter(a => (a.od || 0) > 44);
+    add({ n: 8, key: "highdur", name: "High Duration", desc: "Remaining tasks longer than 44 working days", count: hiD.length, base: T, value: pct(hiD.length, T), fmt: "pct", target: "≤ 5%", pass: pct(hiD.length, T) <= 0.05,
+      items: hiD.map(a => ({ ...lbl(a), note: `${a.od} d` })) });
+    // 9 Invalid dates
+    const inv = [];
+    acts.filter(a => !a.isLOE).forEach(a => {
+      if (a.status === "N" && a.start && a.start < DD) inv.push({ ...lbl(a), note: "forecast start before the data date" });
+      if (a.as && a.as > DD) inv.push({ ...lbl(a), note: "actual start after the data date" });
+      if (a.af && a.af > DD) inv.push({ ...lbl(a), note: "actual finish after the data date" });
+    });
+    add({ n: 9, key: "invalid", name: "Invalid Dates", desc: "Forecasts in the past or actuals in the future", count: inv.length, base: acts.length, value: pct(inv.length, acts.length), fmt: "pct", target: "0%", pass: inv.length === 0, items: inv });
+    // 10 Resources
+    const noRes = data.hasCost ? incT.filter(a => a.cost == null || a.cost === "" || a.cost === 0) : [];
+    add({ n: 10, key: "resources", name: "Resources", desc: "Remaining tasks without cost or resources", count: noRes.length, base: T, value: pct(noRes.length, T), fmt: "pct", target: "0%", pass: data.hasCost ? noRes.length === 0 : null,
+      items: noRes.map(a => ({ ...lbl(a), note: "no cost / resource" })), na: !data.hasCost && "No cost or resource column found" });
+    // 11 Missed tasks
+    const due = acts.filter(a => !a.isLOE && !a.isMS && a.bf && a.bf <= DD);
+    const missed = due.filter(a => !a.af || a.af > a.bf);
+    add({ n: 11, key: "missed", name: "Missed Tasks", desc: "Tasks due by the baseline that finished late or are not finished", count: missed.length, base: due.length, value: pct(missed.length, due.length), fmt: "pct", target: "≤ 5%", pass: data.hasBaseline ? pct(missed.length, due.length) <= 0.05 : null,
+      items: missed.map(a => ({ ...lbl(a), note: a.af ? `finished ${wdBetween(a.bf, a.af)} d late` : "not finished" })), na: !data.hasBaseline && "No baseline columns found" });
+
+    // Forward pass for Critical Path Test
+    const cpm = forward(acts, rels, DD);
+    const critical = inc.filter(a => a.tf != null).sort((x, y) => x.tf - y.tf || (x.start - y.start))[0];
+    let cpt = null;
+    if (cpm.ok && critical) {
+      const delayed = forward(acts, rels, DD, { [critical.id]: 600 });
+      cpt = { activity: critical, before: cpm.finish, after: delayed.finish, pass: delayed.ok && delayed.finish - cpm.finish >= 600 };
+    }
+    add({ n: 12, key: "cpt", name: "Critical Path Test", desc: "Delaying the most critical activity must delay the project finish", count: cpt ? (cpt.pass ? 1 : 0) : 0, base: 1, value: cpt ? (cpt.pass ? "Pass" : "Fail") : "n/a", fmt: "text", target: "Pass", pass: cpt ? cpt.pass : null,
+      items: cpt ? [{ id: cpt.activity.id, name: cpt.activity.name, note: cpt.pass ? "+600 d delay moved the project finish by 600 d" : `+600 d delay moved the project finish by only ${cpt.after - cpt.before} d - the path is broken` }] : [],
+      na: !cpt && (cpm.ok ? "No float data" : "Logic loop found - cannot run the test") });
+
+    // 13 CPLI
+    const nonLOE = acts.filter(a => !a.isLOE && a.finish);
+    const projFinish = nonLOE.reduce((m, a) => a.finish > m ? a.finish : m, nonLOE[0] ? nonLOE[0].finish : DD);
+    const cpl = wdBetween(DD, projFinish);
+    const cpTF = critical ? critical.tf : 0;
+    const cpli = cpl > 0 ? (cpl + cpTF) / cpl : null;
+    add({ n: 13, key: "cpli", name: "CPLI", desc: "Critical Path Length Index = (remaining length + float) ÷ remaining length", count: null, base: null, value: cpli, fmt: "ratio", target: "≥ 0.95", pass: cpli != null ? cpli >= 0.95 : null,
+      items: [{ id: "Remaining critical path", name: `${cpl} working days to ${fmt(projFinish)}`, note: `critical float ${cpTF} d` }] });
+    // 14 BEI
+    const doneByDD = acts.filter(a => !a.isLOE && !a.isMS && a.af && a.af <= DD).length;
+    const bei = due.length ? doneByDD / due.length : null;
+    add({ n: 14, key: "bei", name: "BEI", desc: "Baseline Execution Index = tasks finished ÷ tasks the baseline planned to finish", count: doneByDD, base: due.length, value: bei, fmt: "ratio", target: "≥ 0.95", pass: data.hasBaseline && bei != null ? bei >= 0.95 : null,
+      items: [{ id: "Finished", name: `${doneByDD} tasks finished by the data date`, note: `${due.length} planned by baseline` }], na: !data.hasBaseline && "No baseline columns found" });
+
+    // Headline KPIs
+    const blFinish = acts.filter(a => !a.isLOE && a.bf).reduce((m, a) => (!m || a.bf > m) ? a.bf : m, null);
+    const slip = blFinish ? wdBetween(blFinish, projFinish) : null;
+    const tasks = acts.filter(a => !a.isLOE && !a.isMS);
+    const done = tasks.filter(a => a.status === "C").length;
+    const scored = C.filter(c => c.pass !== null);
+    const passed = scored.filter(c => c.pass).length;
+    return { checks: C, passed, scored: scored.length, dataDate: DD, projFinish, blFinish, slip, totalActs: acts.length, tasks: tasks.length, done, incomplete: P, rels: rels.length, critical };
+  }
+
+  function forward(acts, rels, DD, extra = {}) {
+    const ids = acts.filter(a => !a.isLOE).map(a => a.id);
+    const A = Object.fromEntries(acts.map(a => [a.id, a]));
+    const preds = {}, indeg = {}, succ = {};
+    ids.forEach(i => { preds[i] = []; indeg[i] = 0; succ[i] = []; });
+    rels.forEach(r => { if (preds[r.s] && preds[r.p]) { preds[r.s].push(r); indeg[r.s]++; succ[r.p].push(r.s); } });
+    const q = ids.filter(i => !indeg[i]); const order = [];
+    while (q.length) { const i = q.shift(); order.push(i); succ[i].forEach(s => { if (--indeg[s] === 0) q.push(s); }); }
+    if (order.length < ids.length) return { ok: false };
+    const ES = {}, EF = {};
+    order.forEach(i => {
+      const a = A[i];
+      const dur = (a.status === "C" ? 0 : a.status === "P" ? (a.rd != null ? a.rd : a.od || 0) : (a.rd != null ? a.rd : a.od || 0)) + (extra[i] || 0);
+      if (a.status === "C") { ES[i] = EF[i] = 0; return; }
+      let es = 0;
+      if (a.status === "N") {
+        if (a.cdate && /onorafter|startnoearlier|snet/.test(a.ctypeN)) es = Math.max(es, wdBetween(DD, a.cdate));
+        preds[i].forEach(r => {
+          const t = r.t;
+          if (t === "FS") es = Math.max(es, EF[r.p] + r.l);
+          else if (t === "SS") es = Math.max(es, ES[r.p] + r.l);
+          else if (t === "FF") es = Math.max(es, EF[r.p] + r.l - dur);
+          else if (t === "SF") es = Math.max(es, ES[r.p] + r.l - dur);
+        });
+      }
+      ES[i] = Math.max(0, es); EF[i] = ES[i] + dur;
+    });
+    return { ok: true, finish: Math.max(...Object.values(EF)) };
+  }
+
+  function fmt(d) { return d ? d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" }) : "–"; }
+  return { parse, analyze, fmt, toDate, wdBetween };
+})();
+if (typeof module !== "undefined") module.exports = SHC;
+
+</script>
+<script>
+const SAMPLE_B64 = "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";
+const $ = id => document.getElementById(id);
+let parsed = null, result = null, sampleFn = null, downloads = null;
+
+function b64ToBytes(b64){const s=atob(b64);const u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u;}
+function isoDate(d){return d? d.toISOString().slice(0,10):"";}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function setMsg(t,err){$("msg").textContent=t;$("msg").className="msg"+(err?" err":"");}
+
+function load(bytes, label){
+  if(typeof XLSX==="undefined"){setMsg("The Excel reader could not load. Check your connection and reload the page.",true);return;}
+  try{
+    const wb = XLSX.read(bytes,{type:"array",cellDates:true});
+    parsed = SHC.parse(XLSX, wb);
+    if(!parsed.acts.length){setMsg("No activities found. Check the sheet and column names.",true);return;}
+    if(parsed.dataDate) $("dd").value = isoDate(parsed.dataDate);
+    if(!$("dd").value){setMsg(`Loaded ${label}. Set the data date above to run the checks.`,false);return;}
+    const warn = parsed.errors.length? " · "+parsed.errors.join(" "):"";
+    setMsg(`Loaded ${label}: ${parsed.acts.length} activities, ${parsed.rels.length} relationships${warn}`, !!parsed.errors.length);
+    run();
+  }catch(e){console.error(e);setMsg("Could not read this file: "+e.message,true);}
+}
+
+function run(){
+  if(!parsed||!$("dd").value) return;
+  const dd = SHC.toDate($("dd").value);
+  result = SHC.analyze(parsed, dd);
+  render(result);
+}
+
+function fmtVal(c){
+  if(c.na) return "n/a";
+  if(c.fmt==="pct") return (c.value*100).toFixed(c.value>0&&c.value<0.1?1:0)+"%";
+  if(c.fmt==="ratio") return c.value==null?"n/a":c.value.toFixed(2);
+  return c.value;
+}
+function countTxt(c){ return (c.count!=null&&c.base!=null&&c.fmt==="pct")? `${c.count} of ${c.base}`:""; }
+
+function render(r){
+  $("results").style.display="block";
+  const pct = r.passed/14;
+  const col = r.passed>=12?"var(--pass)":r.passed>=8?"var(--amber)":"var(--fail)";
+  $("ringArc").setAttribute("stroke",col);
+  $("ringArc").setAttribute("stroke-dasharray",`${(2*Math.PI*35*pct).toFixed(1)} 220`);
+  $("ringTxt").textContent=`${r.passed}/14`;
+  $("verdict").textContent = r.passed>=12?"Healthy schedule":r.passed>=8?"Needs attention":"Not reliable yet";
+  $("verdict").style.color=col;
+  $("verdictSub").textContent=`${r.passed} of 14 DCMA checks passed`+(r.scored<14?` (${14-r.scored} not scored)`:"");
+  $("kFin").textContent=SHC.fmt(r.projFinish);
+  $("kFinS").innerHTML = r.slip==null?"":(r.slip>0?`<span style="color:var(--fail)">${r.slip} working days late</span>`:r.slip<0?`<span style="color:var(--pass)">${-r.slip} working days early</span>`:"On baseline");
+  $("kBl").textContent=SHC.fmt(r.blFinish); $("kBlS").textContent="from baseline dates";
+  $("kProg").textContent=`${r.done}/${r.tasks}`; $("kProgS").textContent=`${Math.round(r.done/r.tasks*100)}% of tasks finished`;
+  $("kDD").textContent=SHC.fmt(r.dataDate); $("kDDS").textContent=`${r.totalActs} activities · ${r.rels} links`;
+
+  // checks table
+  const tb=$("tbody"); tb.innerHTML="";
+  r.checks.forEach(c=>{
+    const st = c.pass===null?"na":c.pass?"pass":"fail";
+    const tr=document.createElement("tr"); tr.className="row";
+    tr.innerHTML=`<td class="n mono">${c.n}</td><td><div class="cn">${esc(c.name)}<span class="chev">›</span></div><div class="cd">${esc(c.na||c.desc)}</div></td>
+      <td class="res"><div class="mono" style="font-weight:600">${fmtVal(c)}</div><div class="cd">${countTxt(c)}</div></td>
+      <td class="tgt mono">${esc(c.target)}</td><td><span class="pill ${st}">${st==="na"?"N/A":st==="pass"?"Pass":"Fail"}</span></td>`;
+    const det=document.createElement("tr"); det.className="detail"; det.style.display="none";
+    const items=c.items||[];
+    det.innerHTML=`<td colspan="5">${items.length?`<ul>${items.map(i=>`<li><span class="id">${esc(i.id)}</span><span>${esc(i.name)}</span><span class="nt" style="color:${c.pass?'var(--ink2)':'var(--fail)'}">${esc(i.note||"")}</span></li>`).join("")}</ul>`:`<div class="ok">✓ No activities flagged.</div>`}</td>`;
+    tr.onclick=()=>{const o=det.style.display==="none";det.style.display=o?"table-row":"none";tr.classList.toggle("open",o);};
+    tb.appendChild(tr); tb.appendChild(det);
+  });
+
+  // rule-based management summary
+  $("sumBody").innerHTML = ruleSummary(r);
+  $("aiWrap").style.display="none"; $("aiBox").textContent="";
+  $("results").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+const PRIORITY=["negfloat","invalid","cpt","logic","hard","bei","missed","cpli","leads","highfloat","lags","highdur","reltypes","resources"];
+function action(c){
+  const it=c.items||[];
+  switch(c.key){
+    case "negfloat": return `<b>Recover negative float.</b> ${c.count} activities are behind their target dates (worst ${it[0]?esc(it[0].note):""}, e.g. ${esc(it[0]?it[0].name:"")}). Agree a recovery plan or re-baseline the target.`;
+    case "invalid": return `<b>Fix ${c.count} invalid date${c.count>1?"s":""}.</b> Progress was not updated correctly at the data date, so the forecast cannot be trusted until it is.`;
+    case "cpt": return `<b>The critical path is broken.</b> A delay on the most critical activity does not reach the finish date. Check the logic and constraints along the path.`;
+    case "logic": return `<b>Close ${c.count} open logic end${c.count>1?"s":""}.</b> Activities without a predecessor or successor hide delays from the finish date.`;
+    case "hard": return `<b>Replace ${c.count} hard constraint${c.count>1?"s":""} with logic.</b> Fixed dates override the network and can hide real slippage.`;
+    case "bei": return `<b>Execution is behind the baseline.</b> BEI is ${c.value.toFixed(2)}: ${c.count} of ${c.base} planned tasks are finished.`;
+    case "missed": return `<b>${c.count} tasks missed their baseline finish.</b> Review why durations grew and whether it affects the remaining work.`;
+    case "cpli": return `<b>The finish date is at risk.</b> CPLI is ${c.value.toFixed(2)}: the remaining critical path needs more time than is available.`;
+    case "leads": return `<b>Remove ${c.count} lead${c.count>1?"s":""} (negative lag).</b> Split the work into separate activities instead.`;
+    case "highfloat": return `<b>Check ${c.count} activities with very high float.</b> Usually a sign of missing successors.`;
+    case "lags": return `<b>Reduce lags (${(c.value*100).toFixed(0)}% of links).</b> Model waiting time as activities so it is visible.`;
+    case "highdur": return `<b>Break down ${c.count} long activities.</b> Tasks over 44 working days are hard to progress and control.`;
+    case "reltypes": return `<b>Use more Finish-to-Start links.</b> Only ${(c.value*100).toFixed(0)}% of links are FS.`;
+    case "resources": return `<b>Load cost or resources on ${c.count} task${c.count>1?"s":""}.</b> They are missing from cost and EVM reporting.`;
+  }
+  return "";
+}
+function ruleSummary(r){
+  const fails=r.checks.filter(c=>c.pass===false).sort((a,b)=>PRIORITY.indexOf(a.key)-PRIORITY.indexOf(b.key));
+  const verdict = r.passed>=12?"is in good shape and its dates can be relied on":r.passed>=8?"is usable but needs cleaning before its dates can be fully trusted":"is not reliable yet, so its dates should be treated with caution";
+  let finish = `Forecast completion is <b>${SHC.fmt(r.projFinish)}</b>`;
+  if(r.slip!=null) finish += r.slip>0?`, <b>${r.slip} working days later</b> than the baseline (${SHC.fmt(r.blFinish)}).`:r.slip<0?`, ${-r.slip} working days ahead of the baseline.`:", in line with the baseline.";
+  else finish += ".";
+  let h=`<p>The schedule passes <b>${r.passed} of 14</b> DCMA checks and ${verdict}. ${finish}</p>`;
+  if(fails.length){ h+=`<p style="margin-bottom:6px"><b>Top priorities:</b></p><ol>${fails.slice(0,3).map(c=>`<li>${action(c)}</li>`).join("")}</ol>`; }
+  else h+=`<p>No failed checks. Keep the update discipline at each data date.</p>`;
+  return h;
+}
+
+async function aiSummary(){
+  if(!sampleFn||!result) return;
+  const btn=$("aiBtn"); btn.disabled=true; btn.innerHTML='<span class="spin"></span>Writing…';
+  $("aiWrap").style.display="block"; $("aiBox").textContent="Thinking…";
+  const compact={dataDate:SHC.fmt(result.dataDate),forecastFinish:SHC.fmt(result.projFinish),baselineFinish:SHC.fmt(result.blFinish),slipWorkingDays:result.slip,
+    passed:result.passed, tasksDone:result.done, tasksTotal:result.tasks,
+    checks:result.checks.map(c=>({check:c.name,result:fmtVal(c),target:c.target,status:c.pass===null?"n/a":c.pass?"pass":"fail",examples:(c.items||[]).slice(0,4).map(i=>`${i.id} ${i.name} (${i.note})`)}))};
+  const prompt=`You are a project controls assistant writing for top management (non-schedulers).
+Below are the results of a DCMA 14-Point schedule health check (JSON).
+Write a short executive summary in plain English:
+- 1-2 sentences: overall verdict on how reliable the schedule is, and the forecast finish vs baseline.
+- Then "Key risks:" with 3 bullets (start each with "- "), naming the most important problems in business terms with an example activity.
+- Then "Recommended actions:" with 3 bullets (start each with "- "), concrete and practical.
+Max 170 words. No markdown headings, no bold, no jargon without a short explanation.
+
+${JSON.stringify(compact)}`;
+  try{
+    await sampleFn(prompt,{modelTier:"quick",onText:({text})=>{$("aiBox").textContent=text;}}).then(r=>{$("aiBox").textContent=r.text;});
+  }catch(e){
+    $("aiBox").textContent = e&&e.code==="rate_limited"?"Too many requests right now. Try again in a minute.":"The AI summary is not available in this view. The summary above is generated from the check results.";
+    if(e&&e.code==="not_granted") btn.style.display="none";
+  }
+  btn.disabled=false; btn.textContent="✦ Rewrite AI summary";
+}
+
+// wiring
+const drop=$("drop"), file=$("file");
+drop.onclick=()=>file.click();
+drop.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();file.click();}};
+file.onchange=()=>{const f=file.files[0];if(f)f.arrayBuffer().then(b=>load(new Uint8Array(b),f.name));};
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over");}));
+drop.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f)f.arrayBuffer().then(b=>load(new Uint8Array(b),f.name));});
+$("sampleBtn").onclick=()=>{$("dd").value="";load(b64ToBytes(SAMPLE_B64),"the sample project (Pump Station Upgrade – EPC)");};
+$("dd").onchange=run;
+$("aiBtn").onclick=aiSummary;
+$("dlBtn").onclick=async()=>{
+  try{await downloads.save({filename:"Schedule_Health_Check_Sample_Data.xlsx",data:b64ToBytes(SAMPLE_B64)});}
+  catch(e){ if(e&&["unavailable","not_granted","capability_disabled","capability_removed"].includes(e.code)) $("dlBtn").style.display="none"; }
+};
+(async()=>{
+  if(!window.claude||!window.claude.use){ $("dlLink").style.display="block"; return; }
+  try{ downloads=await window.claude.use("downloads"); if(downloads) $("dlBtn").style.display="block"; }catch(e){}
+  try{ sampleFn=await window.claude.use("sample"); if(sampleFn) $("aiBtn").style.display="inline-block"; }catch(e){}
+})();
+</script>
+</body>
+</html>
