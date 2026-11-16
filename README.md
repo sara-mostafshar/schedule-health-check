@@ -17,4 +17,4 @@ Thresholds follow the DCMA 14-Point Schedule Assessment. Durations and float are
 
 🔒 Your file is read in your browser only. The sample project is fictional.
 
-Built by [Sara Mostafshar](https://sara-mostafshar.github.io) · AI agents and free tools for project controllers
+Built by [Sara Mostafshar](https://sara-mostafshar.github.io) · AI agents and free tools for project controllers and project managers
