@@ -88,6 +88,15 @@ footer{margin-top:26px;font-size:12.5px;color:var(--muted);display:flex;justify-
 .spin{display:inline-block;width:14px;height:14px;border:2px solid #b8c6e6;border-top-color:var(--accent);border-radius:50%;animation:s 1s linear infinite;vertical-align:-2px;margin-right:6px}
 @keyframes s{to{transform:rotate(360deg)}}
 </style>
+<style>
+.yt-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.yt-links a{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;font:600 14px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;text-decoration:none}
+.yt-links a.yt-watch{background:#ff0000;color:#fff}
+.yt-links a.yt-watch:hover{background:#d90000}
+.yt-links a.yt-sub{background:#fff;color:#14213d;border:1px solid #d5dae3}
+.yt-links a.yt-sub:hover{background:#f2f4f8}
+@media print{.yt-links{display:none!important}}
+</style>
 </head>
 <body>
 <div class="wrap">
@@ -96,6 +105,10 @@ footer{margin-top:26px;font-size:12.5px;color:var(--muted);display:flex;justify-
       <div class="kicker">AI tools for project controllers and project managers</div>
       <h1>Schedule Health Check</h1>
       <p class="sub">Run the DCMA 14-Point assessment on your schedule in seconds. Upload an Excel export, see which checks pass or fail, click any check to see the activities behind it, and get a plain-English summary for management.</p>
+    <div class="yt-links">
+      <a class="yt-watch" href="https://youtu.be/55a_eWYZm0c" target="_blank" rel="noopener">&#9654; Watch the 3-min video on YouTube</a>
+      <a class="yt-sub" href="https://www.youtube.com/@saramostafshar7216?sub_confirmation=1" target="_blank" rel="noopener">Subscribe to my channel</a>
+    </div>
     </div>
     <div class="by">Built by <b>Sara Mostafshar</b><br>Your file is read in your browser only</div>
   </header>
