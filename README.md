@@ -17,4 +17,10 @@ Thresholds follow the DCMA 14-Point Schedule Assessment. Durations and float are
 
 🔒 Your file is read in your browser only. The sample project is fictional.
 
+## Use the online version
+Please use the online version for the latest tested release: https://sara-mostafshar.github.io/schedule-health-check/ – downloaded copies do not receive fixes and updates.
+
+## License
+Free to use, share and adapt under the [MIT License](LICENSE). Please keep the credit to Sara Mostafshar.
+
 Built by [Sara Mostafshar](https://sara-mostafshar.github.io) · AI agents and free tools for project controllers and project managers
