@@ -591,6 +591,20 @@ $("dlBtn").onclick=async()=>{
 })();
 </script>
 <!-- Visitor count (GoatCounter, no cookies) -->
+<script>
+/* Anonymous usage counting with GoatCounter: only button names are sent, never file contents or data. */
+(function(){
+  function gc(name){ try{ if(window.goatcounter&&window.goatcounter.count) window.goatcounter.count({path:name,title:name,event:true}); }catch(e){} }
+  var CLICKS=[["#sampleBtn","shc-try-sample"],["#dlBtn","shc-download-sample"],["#dlLink","shc-download-sample"],["#aiBtn","shc-ai-summary"],["a.yt-watch","shc-youtube-video"],["a.yt-sub","shc-youtube-subscribe"]];
+  var CHANGES=[["#file","shc-upload-own-file"]];
+  document.addEventListener("click",function(e){
+    for(var i=0;i<CLICKS.length;i++){ var el=e.target.closest&&e.target.closest(CLICKS[i][0]); if(el){ var n=CLICKS[i][1]; gc(typeof n==="function"?n(el):n); return; } }
+  },true);
+  document.addEventListener("change",function(e){
+    for(var i=0;i<CHANGES.length;i++){ if(e.target.matches&&e.target.matches(CHANGES[i][0])&&e.target.files&&e.target.files.length){ gc(CHANGES[i][1]); return; } }
+  },true);
+})();
+</script>
 <script data-goatcounter="https://saramostafshar.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>
