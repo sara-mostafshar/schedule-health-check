@@ -118,15 +118,16 @@ footer{margin-top:26px;font-size:12.5px;color:var(--muted);display:flex;justify-
       <div>
         <div class="drop" id="drop" tabindex="0" role="button" aria-label="Upload Excel file">
           <strong>Drop your schedule (.xlsx) here</strong>
-          <span>or click to choose a file · sheets: Activities + Relationships</span>
+          <span>or click to choose a file · sheets: Activities + Relationships, or an MS Project export</span>
         </div>
         <input type="file" id="file" accept=".xlsx,.xls,.xlsm" hidden>
         <div class="msg" id="msg"></div>
       </div>
       <div class="side">
         <button class="primary" id="sampleBtn">Try the sample project</button>
-        <button id="dlBtn" style="display:none">Download sample Excel (template)</button>
-        <a id="dlLink" href="Schedule_Health_Check_Sample_Data.xlsx" download style="display:none;text-align:center;border:1px solid var(--line);border-radius:9px;padding:10px 14px;color:var(--ink);text-decoration:none;font-weight:500;background:#fff">Download sample Excel (template)</a>
+        <button id="dlBtn" style="display:none">Download P6 sample (template)</button>
+        <a id="dlLink" href="Schedule_Health_Check_Sample_Data.xlsx" download style="display:none;text-align:center;border:1px solid var(--line);border-radius:9px;padding:10px 14px;color:var(--ink);text-decoration:none;font-weight:500;background:#fff">Download P6 sample (template)</a>
+        <a id="dlMsp" href="Schedule_Health_Check_Sample_MS_Project.xlsx" download style="display:none;text-align:center;border:1px solid var(--line);border-radius:9px;padding:10px 14px;color:var(--ink);text-decoration:none;font-weight:500;background:#fff">Download MS Project sample</a>
         <label class="dd">Data date <input type="date" id="dd"></label>
       </div>
     </div>
@@ -135,7 +136,7 @@ footer{margin-top:26px;font-size:12.5px;color:var(--muted);display:flex;justify-
       <p><b>Sheet "Activities"</b>: <code>Activity ID</code>, <code>Activity Name</code>, <code>Activity Type</code> (Task / Start Milestone / Finish Milestone / Level of Effort), <code>Status</code>, <code>Original Duration (d)</code>, <code>Remaining Duration (d)</code>, <code>Start</code>, <code>Finish</code>, <code>Actual Start</code>, <code>Actual Finish</code>, <code>Baseline Start</code>, <code>Baseline Finish</code>, <code>Total Float (d)</code>, <code>Constraint Type</code>, <code>Constraint Date</code>, <code>Budgeted Cost</code>.</p>
       <p><b>Sheet "Relationships"</b>: <code>Predecessor ID</code>, <code>Successor ID</code>, <code>Relationship Type</code> (FS/SS/FF/SF), <code>Lag (d)</code>.</p>
       <p>Durations and float in working days. Put the data date in a cell labelled <code>Data Date</code> (e.g. on a "Read Me" sheet), or set it above. Common Primavera P6 / MS Project export names are recognised too.</p>
-      <p><b>From MS Project</b>: export the task table to Excel with <code>ID</code>, <code>Name</code>, <code>Duration</code>, <code>Start</code>, <code>Finish</code>, <code>Actual Start</code>, <code>Actual Finish</code>, <code>Baseline Start</code>, <code>Baseline Finish</code>, <code>Total Slack</code>, <code>Constraint Type</code>, <code>Constraint Date</code>, <code>Resource Names</code>, <code>Predecessors</code> and <code>Summary</code>. Text such as "5 days" or "3FS+2 days" is read automatically and summary tasks are skipped. Add a cell labelled <code>Status Date</code> or set the data date above.</p>
+      <p><b>From MS Project</b>: export the task table to Excel with <code>ID</code>, <code>Name</code>, <code>Duration</code>, <code>Start</code>, <code>Finish</code>, <code>Actual Start</code>, <code>Actual Finish</code>, <code>Baseline Start</code>, <code>Baseline Finish</code>, <code>Total Slack</code>, <code>Constraint Type</code>, <code>Constraint Date</code>, <code>Resource Names</code>, <code>Predecessors</code> and <code>Summary</code>. Text such as "5 days" or "3FS+2 days" is read automatically and summary tasks are skipped. Add a cell labelled <code>Status Date</code> or set the data date above. See the <a href="Schedule_Health_Check_Sample_MS_Project.xlsx" download>MS Project sample</a> for the layout.</p>
     </details>
   </section>
 
@@ -680,7 +681,7 @@ $("dlBtn").onclick=async()=>{
   catch(e){ if(e&&["unavailable","not_granted","capability_disabled","capability_removed"].includes(e.code)) $("dlBtn").style.display="none"; }
 };
 (async()=>{
-  if(!window.claude||!window.claude.use){ $("dlLink").style.display="block"; return; }
+  if(!window.claude||!window.claude.use){ $("dlLink").style.display="block"; $("dlMsp").style.display="block"; return; }
   try{ downloads=await window.claude.use("downloads"); if(downloads) $("dlBtn").style.display="block"; }catch(e){}
   try{ sampleFn=await window.claude.use("sample"); if(sampleFn) $("aiBtn").style.display="inline-block"; }catch(e){}
 })();
@@ -690,7 +691,7 @@ $("dlBtn").onclick=async()=>{
 /* Anonymous usage counting with GoatCounter: only button names are sent, never file contents or data. */
 (function(){
   function gc(name){ try{ if(window.goatcounter&&window.goatcounter.count) window.goatcounter.count({path:name,title:name,event:true}); }catch(e){} }
-  var CLICKS=[["#sampleBtn","shc-try-sample"],["#dlBtn","shc-download-sample"],["#dlLink","shc-download-sample"],["#aiBtn","shc-ai-summary"],["a.yt-watch","shc-youtube-video"],["a.yt-sub","shc-youtube-subscribe"]];
+  var CLICKS=[["#sampleBtn","shc-try-sample"],["#dlBtn","shc-download-sample"],["#dlLink","shc-download-sample"],["#dlMsp","shc-download-msp-sample"],["#aiBtn","shc-ai-summary"],["a.yt-watch","shc-youtube-video"],["a.yt-sub","shc-youtube-subscribe"]];
   var CHANGES=[["#file","shc-upload-own-file"]];
   document.addEventListener("click",function(e){
     for(var i=0;i<CLICKS.length;i++){ var el=e.target.closest&&e.target.closest(CLICKS[i][0]); if(el){ var n=CLICKS[i][1]; gc(typeof n==="function"?n(el):n); return; } }

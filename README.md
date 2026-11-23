@@ -9,8 +9,8 @@ A free tool that runs the DCMA 14-point schedule assessment in seconds. Upload a
 - A plain-English summary for management
 
 ## How to use
-1. Open the link and click **Try the sample project**, or download the sample Excel template.
-2. Prepare an Excel file with the sheets `Activities` and `Relationships`.
+1. Open the link and click **Try the sample project**, or download the P6 sample (template) or the MS Project sample.
+2. Prepare an Excel file with the sheets `Activities` and `Relationships` – or, from MS Project, export the task table with the `Predecessors` column (see `Schedule_Health_Check_Sample_MS_Project.xlsx`).
 3. Drop the file on the page.
 
 Thresholds follow the DCMA 14-Point Schedule Assessment. Durations and float are in working days (Mon–Fri).
@@ -25,6 +25,7 @@ Thresholds follow the DCMA 14-Point Schedule Assessment. Durations and float are
 - Without an Activity Type column, the project's first and last milestones count as start and finish milestones.
 - Text dates such as `Mon 05.01.26` and `NA` are read correctly.
 - A warning shows if a duration or float value cannot be read, instead of treating it as blank.
+- New MS Project sample file (`Schedule_Health_Check_Sample_MS_Project.xlsx`) and a download button for it.
 
 **Version 1.1 – 20 Nov 2026**
 - Data date: the date box now gives the same day in every time zone (before, users in the Americas got one day earlier).
