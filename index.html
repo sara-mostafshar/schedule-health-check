@@ -135,6 +135,7 @@ footer{margin-top:26px;font-size:12.5px;color:var(--muted);display:flex;justify-
       <p><b>Sheet "Activities"</b>: <code>Activity ID</code>, <code>Activity Name</code>, <code>Activity Type</code> (Task / Start Milestone / Finish Milestone / Level of Effort), <code>Status</code>, <code>Original Duration (d)</code>, <code>Remaining Duration (d)</code>, <code>Start</code>, <code>Finish</code>, <code>Actual Start</code>, <code>Actual Finish</code>, <code>Baseline Start</code>, <code>Baseline Finish</code>, <code>Total Float (d)</code>, <code>Constraint Type</code>, <code>Constraint Date</code>, <code>Budgeted Cost</code>.</p>
       <p><b>Sheet "Relationships"</b>: <code>Predecessor ID</code>, <code>Successor ID</code>, <code>Relationship Type</code> (FS/SS/FF/SF), <code>Lag (d)</code>.</p>
       <p>Durations and float in working days. Put the data date in a cell labelled <code>Data Date</code> (e.g. on a "Read Me" sheet), or set it above. Common Primavera P6 / MS Project export names are recognised too.</p>
+      <p><b>From MS Project</b>: export the task table to Excel with <code>ID</code>, <code>Name</code>, <code>Duration</code>, <code>Start</code>, <code>Finish</code>, <code>Actual Start</code>, <code>Actual Finish</code>, <code>Baseline Start</code>, <code>Baseline Finish</code>, <code>Total Slack</code>, <code>Constraint Type</code>, <code>Constraint Date</code>, <code>Resource Names</code>, <code>Predecessors</code> and <code>Summary</code>. Text such as "5 days" or "3FS+2 days" is read automatically and summary tasks are skipped. Add a cell labelled <code>Status Date</code> or set the data date above.</p>
     </details>
   </section>
 
@@ -171,7 +172,7 @@ footer{margin-top:26px;font-size:12.5px;color:var(--muted);display:flex;justify-
 
   <footer>
     <span>Thresholds follow the DCMA 14-Point Schedule Assessment. Durations and float in working days (Mon–Fri).</span>
-    <span>Schedule Health Check · Sara Mostafshar · <a href="https://github.com/sara-mostafshar/schedule-health-check#whats-new" target="_blank" rel="noopener" style="color:inherit">Version 1.1 – last updated 20 Nov 2026 (date fixes, logic-loop check, clearer template)</a></span>
+    <span>Schedule Health Check · Sara Mostafshar · <a href="https://github.com/sara-mostafshar/schedule-health-check#whats-new" target="_blank" rel="noopener" style="color:inherit">Version 1.2 – last updated 23 Nov 2026 (MS Project exports read directly)</a></span>
   </footer>
 </div>
 
@@ -182,7 +183,7 @@ const SHC = (() => {
   const ACT_MAP = {
     id: ["activityid", "id", "taskid", "activitycode"],
     name: ["activityname", "name", "taskname", "description"],
-    wbs: ["wbs", "wbscode", "wbsname"],
+    wbs: ["wbs", "wbscode", "wbsname", "outlinenumber"],
     type: ["activitytype", "type", "tasktype"],
     status: ["status", "activitystatus"],
     od: ["originalduration", "duration", "plannedduration", "baselineduration"],
@@ -197,6 +198,9 @@ const SHC = (() => {
     ctype: ["constrainttype", "primaryconstraint", "constraint"],
     cdate: ["constraintdate", "primaryconstraintdate"],
     cost: ["budgetedcost", "budgetedtotalcost", "cost", "budget", "resource", "resources", "resourcenames"],
+    pred: ["predecessors"],
+    summary: ["summary", "summarytask"],
+    ms: ["milestone"],
   };
   const REL_MAP = {
     p: ["predecessorid", "predecessor", "predid", "fromid"],
@@ -216,17 +220,51 @@ const SHC = (() => {
       return new Date(Date.UTC(t.getFullYear(), t.getMonth(), t.getDate()));
     }
     if (typeof v === "number") return new Date(Math.round((v - 25569)) * DAY);
-    const s = String(v).trim();
+    let s = String(v).trim();
+    if (/^na$/i.test(s)) return null;
+    // MS Project text dates: drop a leading weekday ("Mon 05.01.26") and a trailing time ("08:00", "8:00 AM")
+    s = s.replace(/^[a-zäö]{2,4}\.?\s+(?=\d)/i, "").replace(/\s+\d{1,2}:\d{2}(:\d{2})?\s*(am|pm)?$/i, "");
     // ISO "2026-08-28" (also from the date box): read as that calendar day in every time zone
     let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
     if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
     // Text dates are read day first: 28.8.2026, 28/08/2026, 28-08-2026 (Finnish / European style)
-    m = s.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})$/);
-    if (m) { const d = new Date(Date.UTC(+m[3], +m[2] - 1, +m[1])); return (d.getUTCMonth() === +m[2] - 1 && d.getUTCDate() === +m[1]) ? d : null; }
+    m = s.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4}|\d{2})$/);
+    if (m) { if (m[3].length === 2) m[3] = "20" + m[3]; const d = new Date(Date.UTC(+m[3], +m[2] - 1, +m[1])); return (d.getUTCMonth() === +m[2] - 1 && d.getUTCDate() === +m[1]) ? d : null; }
     const d = new Date(v);
     return isNaN(d) ? null : new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
   }
   const num = v => (v == null || v === "" || isNaN(+v)) ? null : +v;
+  // Durations, float and lag in working days. Numbers pass through; MS Project text such as
+  // "5 days", "5d", "-3 days", "2 wks", "16 hrs", "1 mon", "3 edays", "4 days?" is converted
+  // (8 hours = 1 day, 5 days = 1 week, 20 days = 1 month - the MS Project defaults).
+  const UNIT = { m: 1 / 480, min: 1 / 480, mins: 1 / 480, minute: 1 / 480, minutes: 1 / 480,
+    h: 1 / 8, hr: 1 / 8, hrs: 1 / 8, hour: 1 / 8, hours: 1 / 8,
+    d: 1, dy: 1, day: 1, days: 1, w: 5, wk: 5, wks: 5, week: 5, weeks: 5,
+    mo: 20, mon: 20, mons: 20, month: 20, months: 20 };
+  function dur(v) {
+    if (v == null || v === "") return null;
+    if (typeof v === "number") return isNaN(v) ? null : v;
+    const s = String(v).trim().toLowerCase().replace(/\?$/, "").trim();
+    if (s === "" || s === "na") return null;
+    if (!isNaN(+s)) return +s;
+    const m = s.match(/^([+-]?\s*\d+(?:[.,]\d+)?)\s*e?([a-z]+)$/);
+    if (!m || !(m[2] in UNIT)) return undefined;   // undefined = text we could not read
+    return Math.round(parseFloat(m[1].replace(/\s/g, "").replace(",", ".")) * UNIT[m[2]] * 100) / 100;
+  }
+  const yes = v => /^(yes|y|true|1|ja|kyllä)$/i.test(String(v == null ? "" : v).trim());
+  // MS Project "Predecessors" cell, e.g. "3FS+2 days, 5SS, 7" (";" also accepted as separator)
+  function parsePreds(cell, succId) {
+    if (cell == null || cell === "") return [];
+    const txt = String(cell);
+    return txt.split(txt.includes(";") ? ";" : ",").map(t => t.trim()).filter(Boolean).map(t => {
+      const m = t.match(/^(.+?)(FS|SS|FF|SF)?\s*([+-]\s*\d+(?:[.,]\d+)?\s*[a-z%]*\??)?$/i);
+      if (!m) return null;
+      const lagTxt = (m[3] || "").replace(/\s/g, "");
+      const isPct = lagTxt.endsWith("%");
+      return { p: m[1].trim(), s: succId, t: (m[2] || "FS").toUpperCase(),
+        l: isPct ? 0 : (dur(lagTxt) || 0), pct: isPct ? parseFloat(lagTxt.replace(",", ".")) : null };
+    }).filter(Boolean);
+  }
   // working days from a to b (Mon-Fri), b exclusive
   function wdBetween(a, b) {
     let n = 0, sign = 1;
@@ -264,9 +302,21 @@ const SHC = (() => {
       rels = r.out.filter(x => x.p != null && x.s != null).map(x => ({
         p: String(x.p).trim(), s: String(x.s).trim(),
         t: String(x.t || "FS").toUpperCase().replace(/[^A-Z]/g, "").replace("FINISHTOSTART", "FS").replace("STARTTOSTART", "SS").replace("FINISHTOFINISH", "FF").replace("STARTTOFINISH", "SF").slice(0, 2) || "FS",
-        l: num(x.l) || 0,
+        l: dur(x.l) || 0,
       }));
-    } else errors.push("No 'Relationships' sheet found - logic checks need it.");
+    }
+    const notes = [];
+    // No Relationships sheet (or an empty one): read the MS Project "Predecessors" column instead
+    if (!rels.length && !a.missing.includes("pred")) {
+      rels = a.out.filter(x => x.id != null && x.id !== "").flatMap(x => parsePreds(x.pred, String(x.id).trim()));
+      if (rels.length) notes.push(`Relationships read from the Predecessors column (${rels.length} links).`);
+    }
+    if (!rels.length) errors.push("No relationships found - add a 'Relationships' sheet or a 'Predecessors' column. The logic checks need it.");
+    // Durations, float and lag that are text we cannot read
+    const bad = {};
+    for (const [k, lab] of [["od", "Duration"], ["rd", "Remaining Duration"], ["tf", "Total Float / Slack"]])
+      a.out.forEach(x => { if (dur(x[k]) === undefined) bad[lab] = (bad[lab] || 0) + 1; });
+    for (const lab in bad) errors.push(`${bad[lab]} '${lab}' value${bad[lab] > 1 ? "s" : ""} could not be read as working days - use numbers such as 5 or text such as "5 days".`);
     for (const k of ["id", "od", "start", "finish"]) if (a.missing.includes(k)) errors.push(`Activities sheet: column for '${k}' not found.`);
 
     // Data date: look in any sheet for a "Data Date" label
@@ -279,23 +329,52 @@ const SHC = (() => {
       }
       if (dataDate) break;
     }
-    const acts = a.out.filter(x => x.id != null && x.id !== "").map(x => {
+    // Summary tasks (MS Project): skip them. Use the "Summary" column, or - when the file has no
+    // Activity Type or Summary column - an outline/WBS number that has children (1.2 has 1.2.1).
+    let rows = a.out.filter(x => x.id != null && x.id !== "");
+    let summaries = 0;
+    if (!a.missing.includes("summary")) { const n = rows.length; rows = rows.filter(x => !yes(x.summary)); summaries = n - rows.length; }
+    else if (a.missing.includes("type") && !a.missing.includes("wbs")) {
+      const codes = rows.map(x => String(x.wbs == null ? "" : x.wbs).trim());
+      if (codes.every(c => /^\d+(\.\d+)*$/.test(c)) && new Set(codes).size === codes.length) {
+        const parent = new Set(codes.filter(c => codes.some(d => d.startsWith(c + "."))));
+        const n = rows.length; rows = rows.filter((x, i) => !parent.has(codes[i])); summaries = n - rows.length;
+      }
+    }
+    if (summaries) notes.push(`${summaries} summary task${summaries > 1 ? "s" : ""} skipped.`);
+    const acts = rows.map(x => {
       const typeN = norm(x.type);
       const af = toDate(x.af), as = toDate(x.as);
       let st = norm(x.status);
       const status = st.includes("complet") || st === "finished" ? "C" : st.includes("progress") || st === "started" ? "P" : st.includes("notstart") || st === "planned" ? "N" : (af ? "C" : as ? "P" : "N");
-      const od = num(x.od);
+      const od = dur(x.od) ?? null;
       return {
         id: String(x.id).trim(), name: x.name || "", wbs: x.wbs || "", typeRaw: x.type || "",
         isLOE: typeN.includes("levelofeffort") || typeN === "loe" || typeN.includes("hammock") || typeN.includes("wbssummary"),
-        isMS: typeN.includes("milestone") || (od === 0 && !typeN.includes("levelofeffort")),
+        isMS: typeN.includes("milestone") || yes(x.ms) || (od === 0 && !typeN.includes("levelofeffort")),
         isStartMS: typeN.includes("startmilestone"), isFinishMS: typeN.includes("finishmilestone"),
-        status, od, rd: num(x.rd), start: toDate(x.start), finish: toDate(x.finish), as, af,
-        bs: toDate(x.bs), bf: toDate(x.bf), tf: num(x.tf), ctype: x.ctype || "", ctypeN: norm(x.ctype), cdate: toDate(x.cdate),
+        status, od, rd: dur(x.rd) ?? null, start: toDate(x.start), finish: toDate(x.finish), as, af,
+        bs: toDate(x.bs), bf: toDate(x.bf), tf: dur(x.tf) ?? null, ctype: x.ctype || "", ctypeN: norm(x.ctype), cdate: toDate(x.cdate),
         cost: x.cost,
       };
     });
-    return { acts, rels, dataDate, errors, hasBaseline: !a.missing.includes("bf"), hasCost: !a.missing.includes("cost"), hasFloat: !a.missing.includes("tf") };
+    // No Activity Type column (MS Project): the project's first milestone counts as the start milestone
+    // and its last milestone as the finish milestone, so they are not flagged for missing logic.
+    if (a.missing.includes("type") && acts.length) {
+      const hasP = new Set(rels.map(r => r.s)), hasS = new Set(rels.map(r => r.p));
+      const t = d => d ? d.getTime() : null;
+      const first = Math.min(...acts.map(x => t(x.start)).filter(v => v != null));
+      const last = Math.max(...acts.map(x => t(x.finish)).filter(v => v != null));
+      acts.forEach(x => {
+        if (!x.isMS) return;
+        if (!hasP.has(x.id) && t(x.start) === first) x.isStartMS = true;
+        if (!hasS.has(x.id) && t(x.finish) === last) x.isFinishMS = true;
+      });
+    }
+    // Percentage lags ("3FS+50%") = share of the predecessor's duration
+    const odById = Object.fromEntries(acts.map(x => [x.id, x.od || 0]));
+    rels.forEach(r => { if (r.pct != null) r.l = Math.round(r.pct / 100 * (odById[r.p] || 0)); delete r.pct; });
+    return { acts, rels, dataDate, errors, notes, hasBaseline: !a.missing.includes("bf"), hasCost: !a.missing.includes("cost"), hasFloat: !a.missing.includes("tf") };
   }
 
   function analyze(data, dataDate) {
@@ -472,7 +551,7 @@ function run(){
   const dd = SHC.toDate($("dd").value);
   const fromFile = parsed.dataDate && +parsed.dataDate===+dd;
   const ddTxt = fromFile? `data date ${SHC.fmt(dd)} from the file` : parsed.dataDate? `data date ${SHC.fmt(dd)} set in the box above (the file says ${SHC.fmt(parsed.dataDate)})` : `no data date in the file, using ${SHC.fmt(dd)} from the box above - change it if needed`;
-  const warn = parsed.errors.length? " · "+parsed.errors.join(" "):"";
+  const warn = (parsed.notes||[]).concat(parsed.errors).length? " · "+(parsed.notes||[]).concat(parsed.errors).join(" "):"";
   setMsg(`Loaded ${parsed.label}: ${parsed.acts.length} activities, ${parsed.rels.length} relationships, ${ddTxt}${warn}`, !!parsed.errors.length || !parsed.dataDate);
   result = SHC.analyze(parsed, dd);
   render(result);

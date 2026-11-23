@@ -18,6 +18,14 @@ Thresholds follow the DCMA 14-Point Schedule Assessment. Durations and float are
 🔒 Your file is read in your browser only. The sample project is fictional.
 
 ## What's new
+**Version 1.2 – 23 Nov 2026**
+- MS Project exports are read directly: durations, slack and lag written as text ("5 days", "2 wks", "16 hrs") are converted to working days.
+- No Relationships sheet needed for MS Project: the `Predecessors` column (e.g. `3FS+2 days, 5SS`) is read instead. `,` and `;` separators and % lags work.
+- Summary tasks are skipped (from the `Summary` column, or from the outline number when there is no type column).
+- Without an Activity Type column, the project's first and last milestones count as start and finish milestones.
+- Text dates such as `Mon 05.01.26` and `NA` are read correctly.
+- A warning shows if a duration or float value cannot be read, instead of treating it as blank.
+
 **Version 1.1 – 20 Nov 2026**
 - Data date: the date box now gives the same day in every time zone (before, users in the Americas got one day earlier).
 - Text dates such as `28.8.2026` or `28/08/2026` are read day-first (European style). Before, `1.9.2026` was read as 9 January.
